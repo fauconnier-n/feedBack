@@ -66,6 +66,39 @@
         { navKey: 'editor',      pluginId: 'editor',      slotId: 'v3-nav-editor',     anchorAfter: 'songs' },
         { navKey: 'audio_engine', pluginId: 'audio_engine', slotId: 'v3-nav-audio-engine', anchorAfter: 'settings' },
     ];
+    // Any other plugin may ask for a sidebar entry of its own in its manifest:
+    //   "nav": { "label": "My Plugin", "screen": "plugin-my_plugin",
+    //            "sidebar": { "after": "virtuoso", "icon": "<24x24 stroke path>" } }
+    // (`"sidebar": true` works too.) renderPromotedNav() adds those from /api/plugins;
+    // a plugin that doesn't ask stays under the single "Plugins" entry. See
+    // docs/plugin-v3-ui.md. `after` names a nav key (a core entry or a promoted
+    // plugin); `icon` is the `d` of one path in the sidebar's icon style.
+    const SIDEBAR_ICON_RE = /^[MmLlHhVvCcSsQqTtAaZz0-9\s,.+-]{1,1200}$/;
+    const PLUGIN_ID_RE = /^[A-Za-z0-9_.-]{1,64}$/;
+    // Pure: the sidebar entries plugins asked for, normalized. `taken` holds the
+    // nav keys already in use (core entries and promoted plugins), which a plugin
+    // can neither replace nor duplicate.
+    function requestedNavEntries(plugins, taken) {
+        const out = [];
+        const seen = new Set(taken || []);
+        for (const p of Array.isArray(plugins) ? plugins : []) {
+            const nav = p && p.nav;
+            const want = nav && nav.sidebar;
+            if (!want || typeof p.id !== 'string' || !PLUGIN_ID_RE.test(p.id) || seen.has(p.id)) continue;
+            seen.add(p.id);
+            const opts = (want && typeof want === 'object') ? want : {};
+            const screen = (typeof nav.screen === 'string' && nav.screen.indexOf('plugin-') === 0)
+                ? nav.screen : 'plugin-' + p.id;
+            out.push({
+                key: p.id,
+                screen: screen,
+                label: String(nav.label || p.name || p.id),
+                after: (typeof opts.after === 'string' && opts.after) ? opts.after : 'plugins',
+                iconPath: (typeof opts.icon === 'string' && SIDEBAR_ICON_RE.test(opts.icon)) ? opts.icon : null,
+            });
+        }
+        return out;
+    }
     const TOPBAR_KEYS = ['home', 'songs', 'plugins', 'settings'];
     const SIDEBAR_GROUPS = ['HOME', 'LIBRARY'];
 
@@ -318,6 +351,40 @@
             const a = host.querySelector('a[data-v3-nav]');
             if (a) a.addEventListener('click', (e) => { e.preventDefault(); go(entry.screen); });
         }
+        renderRequestedNav(list);
+    }
+
+    // Sidebar entries plugins asked for (`nav.sidebar` in the manifest). Each becomes
+    // a NAV entry like the promoted ones, so the active highlight and the topbar
+    // title follow it with no further code.
+    function renderRequestedNav(list) {
+        const nav = document.getElementById('v3-nav');
+        if (!nav) return;
+        let added = false;
+        for (const req of requestedNavEntries(list, NAV.filter((n) => !n.requested).map((n) => n.key))) {
+            let entry = byKey(req.key);
+            if (!entry) {
+                entry = { key: req.key, screen: req.screen, label: req.label, group: null, icon: 'plug', requested: true };
+                if (req.iconPath) { ICONS['plugin:' + req.key] = req.iconPath; entry.icon = 'plugin:' + req.key; }
+                NAV.push(entry);
+            }
+            if (Array.from(nav.querySelectorAll('a[data-v3-nav]')).some((a) => a.getAttribute('data-v3-nav') === req.key)) continue;
+            const anchors = Array.from(nav.querySelectorAll('a[data-v3-nav]'));
+            const anchor = anchors.find((a) => a.getAttribute('data-v3-nav') === req.after)
+                || anchors.find((a) => a.getAttribute('data-v3-nav') === 'plugins');
+            if (!anchor) continue;
+            const holder = document.createElement('div');
+            holder.className = 'space-y-0.5';
+            holder.setAttribute('data-v3-nav-requested', req.key);
+            holder.innerHTML = navItemHTML(entry);
+            const a = holder.querySelector('a[data-v3-nav]');
+            if (a) a.addEventListener('click', (e) => { e.preventDefault(); go(entry.screen); });
+            // A promoted plugin's link sits inside its slot: go after the slot.
+            const slot = PROMOTED_PLUGINS.map((p) => document.getElementById(p.slotId)).find((s) => s && s.contains(anchor));
+            (slot || anchor).insertAdjacentElement('afterend', holder);
+            added = true;
+        }
+        if (added) { try { syncActive(currentScreenId()); } catch (e) { /* non-fatal */ } }
     }
 
     // ── Stay in sync with the active screen (idempotent rehydration — design/05) ─
@@ -369,6 +436,11 @@
     async function boot() {
         var _v3brand = document.getElementById('v3-brand');
         if (_v3brand) _v3brand.innerHTML = '<img src="/static/v3/brand/feedback-logo-light.png" alt="fee[dB]ack" style="width:100%;height:auto;display:block">';
+        // Tell plugins the sidebar honours `nav.sidebar`, so one that used to add its
+        // own entry by hand can stand down.
+        window.feedBack = window.feedBack || {};
+        window.feedBack.ui = window.feedBack.ui || {};
+        window.feedBack.ui.pluginSidebarNav = true;
         renderSidebar();
         renderTopbar();
         ensureBackdrop();

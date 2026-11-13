@@ -8,9 +8,9 @@ The good news: v3 **reuses the same engine** the classic UI did — same `server
 `app.js`, `highway.js`, `playSong`, `showScreen`, capability registry, library
 providers, and the `window.feedBackViz_<id>` / `setRenderer` visualization contract.
 So your plugin's **backend, capabilities, library providers, `nav`/`screen`,
-visualization renderers, diagnostics, and settings export all work unchanged.** v3
-surfaces your `nav` entry in the new sidebar (via `shell.js` `renderPluginNav`) and
-your screen mounts exactly as before.
+visualization renderers, diagnostics, and settings export all work unchanged.** Your
+screen mounts exactly as before and is reached through the sidebar's **Plugins**
+entry; to get a sidebar entry of your own, see [A sidebar entry of your own](#a-sidebar-entry-of-your-own).
 
 **The one thing that changed is the player chrome** — and only if your plugin
 injects controls into it.
@@ -75,6 +75,34 @@ Rules:
 - **Overlays/HUDs/canvases** you attach to `#player` keep working; just keep their
   `z-index` **under the chrome layers**: transport/HUD `z-20`, rail `z-30`,
   popovers `z-40`.
+
+## A sidebar entry of your own
+
+By default a plugin's screen is reached through the single **Plugins** entry. A
+plugin that is a destination in its own right can ask for a sidebar entry in its
+manifest:
+
+```json
+"nav": {
+  "label": "My Plugin",
+  "screen": "plugin-my_plugin",
+  "sidebar": { "after": "virtuoso", "icon": "M3 8h18v8H3zM9 8v8m6-8v8" }
+}
+```
+
+- `"sidebar": true` is enough: the entry goes after **Plugins** with the stock plug icon.
+- `after` names the nav key to sit below: a core entry (`home`, `progress`, `shop`,
+  `feedbarcade`, `plugins`, `settings`, `playlists`, `songs`, `lessons`, `favorites`,
+  `saved`) or a promoted plugin's id (`virtuoso`, `career`, …). Unknown or absent →
+  after **Plugins**.
+- `icon` is the `d` of a single SVG path drawn like the others (24×24 viewBox,
+  `currentColor` stroke, no fill). Only path-data characters are accepted; anything
+  else falls back to the stock icon.
+- The entry lights up while your screen is active and the top bar shows your label,
+  exactly like core's entries. Core nav keys and promoted plugins can't be replaced.
+- **Don't add an entry by patching `#v3-nav` yourself.** If you must support a host
+  that predates this field, gate the fallback on
+  `window.feedBack.ui.pluginSidebarNav !== true`.
 
 ## Pedalboard metadata (icon, description, category)
 
