@@ -230,8 +230,15 @@ append — a fallback may be present) by id — the same seam every time:
 | Shell | Event | Mounts |
 | --- | --- | --- |
 | Profile | `v3:profile-rendered` | `#v3-profile-passports-mount` (career wall), `#v3-profile-feats-slot`, `#v3-profile-achievements-mount` |
-| Dashboard | `v3:dashboard-rendered` | `#v3-dash-career-slot` (career card; core's plugin-count stat is the fallback content a plugin may replace) |
+| Dashboard | `v3:dashboard-rendered` | `#v3-dash-career-slot` (career card; core's plugin-count stat is the fallback content a plugin may replace), `#v3-dash-plugin-cards` (a row any plugin may add **one card** to) |
 | Settings | `v3:settings-rendered` | per-plugin `settings.html` panels |
+
+`#v3-dash-plugin-cards` is **shared**: it is a three-column row that takes no room
+while empty. Append one child with an id of your own (`<plugin_id>-dash-card`),
+and on later events replace *that child*, never the row's content — other
+plugins' cards live beside yours. Give the card the dashboard's own look
+(`bg-fb-card/80 backdrop-blur rounded-lg p-4 border border-fb-border/50`) and keep
+it to a line or two and one action.
 
 Rules: inject on every event (the mount is fresh), keep the section
 **absent-not-empty** (no state → leave the mount alone / empty), and guard

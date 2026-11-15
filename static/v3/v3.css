@@ -71,6 +71,10 @@ input, textarea, select,
 
 /* The navy radial wash lives on the SIDEBAR (the content area is the solid
    darker tone). Brighter toward the top. */
+/* Dashboard: the plugin-cards row takes no room until a plugin adds a card. */
+#v3-dash-plugin-cards { margin-top: 1.5rem; }
+#v3-dash-plugin-cards:empty { display: none; }
+
 #v3-sidebar {
     background-image: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
     background-attachment: fixed;

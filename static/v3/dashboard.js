@@ -219,6 +219,11 @@
             statCard(String(pluginCount), 'active', 'text-fb-good') +
             '</div>' +
             '</div>' +
+            // A row of cards for plugins (a practice tool's "due today", …). Empty
+            // and collapsed (v3.css) until a plugin adds its card on
+            // v3:dashboard-rendered: one child of its own per plugin, never the
+            // row's whole content. See docs/plugin-v3-ui.md.
+            '<div id="v3-dash-plugin-cards" class="grid md:grid-cols-3 gap-6"></div>' +
             recentSection +
             '</div>';
 
